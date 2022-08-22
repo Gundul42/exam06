@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/22 11:17:34 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/22 18:34:36 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,6 +57,7 @@ un-necessary buffer.
 
 Allowed functions: write, close, select, socket, accept, listen, send, recv, bind, strstr, malloc, realloc, free, calloc, bzero, atoi, sprintf, strlen, exit, strcpy, strcat, memset
 */
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
@@ -120,12 +121,28 @@ char *str_join(char *buf, char *add)
 	return (newbuf);
 }
 
+char	*getData(int fd)
+{
+		int			bytes;
+		static char	buf[512];
+
+		memset(buf, 0, 512);
+		bytes = recv(fd, buf, 512, 0);
+		if (bytes < 0)
+			fatal(fd);
+		else if (bytes > 0)
+			return (buf);
+		close (fd);
+		return (NULL);
+}
+
 
 int main(int argc, char **argv) 
 {
 	int sockfd, connfd, len, port, bytes, maxfd;
 	struct sockaddr_in servaddr, cli;
-	fd_set	readfd, readyfd;
+	fd_set	rfd, readyfd;
+	char	*str;
 
 	if (argc != 2)
 	{
@@ -133,6 +150,8 @@ int main(int argc, char **argv)
 			exit (1);
 	}
 	port = atoi(argv[1]);
+	if (port > 65535)
+		fatal(-1);
 	// socket create and verification 
 	sockfd = socket(AF_INET, SOCK_STREAM, 0); 
 	if (sockfd == -1)
@@ -150,43 +169,45 @@ int main(int argc, char **argv)
 	if (listen(sockfd, 10) != 0)
 			fatal(sockfd);
 	maxfd = sockfd + 1;
-	FD_ZERO(&readfd);
-	FD_SET(sockfd, &readfd);
+	FD_ZERO(&rfd);
+	FD_SET(sockfd, &rfd);
 	while (1)
 	{
-		readyfd = readfd;
+		readyfd = rfd;
 		bytes = select(maxfd, &readyfd, NULL, NULL, NULL);
 		if (bytes < 0)
 				fatal(sockfd);
-		if (bytes)
-			printf("%d bytes sent\n", bytes);
-		else
-			printf("---\n");
 		for (int i = 0; i < maxfd; i++)
 		{
-				if (FD_ISSET(i, &readyfd))
+			if (FD_ISSET(i, &readyfd))
+			{
+				if (i == sockfd)
 				{
-						if (i == sockfd)
-						{
-							//if i equals sockfd we have a new connection !
-							len = sizeof(cli);
-							connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
-							if (connfd < 0)
-							{ 
-						        printf("server acccept failed...\n"); 
-					   		    fatal(sockfd); 
-						    }
-							printf("We have new connection from %d\n", connfd);
-							FD_SET(connfd, &readfd);
-							maxfd++;
-						}
-						else
-						{
-							//do something with connection
-							printf("%d) send us some data\n", i);
-							FD_CLR(i, &readyfd);
-						}
+					//if i equals sockfd we have a new connection !
+					len = sizeof(cli);
+					connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
+					if (connfd < 0)
+			   		    fatal(sockfd); 
+					printf("We have new connection from %d\n", connfd);
+					FD_SET(connfd, &rfd); //add to check_for_read array
+					maxfd++;
 				}
+				else
+				{
+					// FD is ready for read, so do it baby !
+					str = getData(i);
+					if (str) // we got something 
+						printf("FD %d) send us: %s", i, str);
+					FD_CLR(i, &readyfd);
+					if (!str) // we got NULL that means client quit
+					{
+						printf("FD %d just quit !\n", i);
+						FD_CLR(i, &rfd); //delete from check_for_read array
+						if (i == maxfd - 1)
+							maxfd--;
+					}
+				}
+			}
 		}
 	}
 	return (0);
