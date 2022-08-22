@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/21 16:30:53 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/22 11:17:34 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -124,8 +124,8 @@ char *str_join(char *buf, char *add)
 int main(int argc, char **argv) 
 {
 	int sockfd, connfd, len, port, bytes, maxfd;
-	struct sockaddr_in servaddr;
-	fd_set	*readfd, *writefd, *exeptfd;
+	struct sockaddr_in servaddr, cli;
+	fd_set	readfd, readyfd;
 
 	if (argc != 2)
 	{
@@ -150,11 +150,44 @@ int main(int argc, char **argv)
 	if (listen(sockfd, 10) != 0)
 			fatal(sockfd);
 	maxfd = sockfd + 1;
+	FD_ZERO(&readfd);
+	FD_SET(sockfd, &readfd);
 	while (1)
 	{
-		bytes = select(maxfd, readfd, writefd, exeptfd, NULL);
-		if (bytes > 0 )
-			printf("%d bytes recieved\n", bytes);
+		readyfd = readfd;
+		bytes = select(maxfd, &readyfd, NULL, NULL, NULL);
+		if (bytes < 0)
+				fatal(sockfd);
+		if (bytes)
+			printf("%d bytes sent\n", bytes);
+		else
+			printf("---\n");
+		for (int i = 0; i < maxfd; i++)
+		{
+				if (FD_ISSET(i, &readyfd))
+				{
+						if (i == sockfd)
+						{
+							//if i equals sockfd we have a new connection !
+							len = sizeof(cli);
+							connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
+							if (connfd < 0)
+							{ 
+						        printf("server acccept failed...\n"); 
+					   		    fatal(sockfd); 
+						    }
+							printf("We have new connection from %d\n", connfd);
+							FD_SET(connfd, &readfd);
+							maxfd++;
+						}
+						else
+						{
+							//do something with connection
+							printf("%d) send us some data\n", i);
+							FD_CLR(i, &readyfd);
+						}
+				}
+		}
 	}
 	return (0);
 }
