@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/24 15:04:30 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/24 16:24:30 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -124,10 +124,10 @@ char *str_join(char *buf, char *add)
 char	*getData(int fd)
 {
 		int			bytes;
-		static char	buf[512];
+		static char	buf[1024];
 
-		memset(buf, 0, 512);
-		bytes = recv(fd, buf, 512, 0);
+		memset(buf, 0, 1024);
+		bytes = recv(fd, buf, 1024, 0);
 		if (bytes < 0)
 			fatal(fd);
 		else if (bytes > 0)
@@ -183,7 +183,7 @@ int main(int argc, char **argv)
 			fatal(sockfd);
 	if (listen(sockfd, 10) != 0)
 			fatal(sockfd);
-	msg = calloc(512, sizeof(char));
+	msg = calloc(1024, sizeof(char));
 	if (!msg)
 		fatal(sockfd);
 	maxfd = sockfd + 1;
