@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/24 16:24:30 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/24 17:58:33 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -158,6 +158,8 @@ int main(int argc, char **argv)
 	fd_set	rfd, wfd, readyfd;
 	char	*str;
 	char	*msg;
+	int		clients[FD_SETSIZE];
+	int		count = 0;
 
 	if (argc != 2)
 	{
@@ -186,6 +188,7 @@ int main(int argc, char **argv)
 	msg = calloc(1024, sizeof(char));
 	if (!msg)
 		fatal(sockfd);
+	memset(&clients, -1, FD_SETSIZE);
 	maxfd = sockfd + 1;
 	FD_ZERO(&rfd);
 	FD_ZERO(&wfd);
@@ -206,12 +209,15 @@ int main(int argc, char **argv)
 					len = sizeof(cli);
 					connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
 					if (connfd < 0)
-			   		    fatal(sockfd); 
-					sprintf(msg,"server: client %d just arrived\n", connfd - sockfd);
+			   		    fatal(sockfd);
+					count++;
+					sprintf(msg,"server: client %d just arrived\n", count);
 					sendToAll(maxfd, wfd, i, msg);
 					FD_SET(connfd, &rfd); //add to check_for_read array
 					FD_SET(connfd, &wfd); //add to check_for_write array
-					maxfd++;
+					clients[connfd] = count;
+					if (connfd >= maxfd)
+						maxfd = connfd + 1;
 				}
 				else
 				{
@@ -219,18 +225,19 @@ int main(int argc, char **argv)
 					str = getData(i);
 					if (str) // we got something 
 					{
-						sprintf(msg, "client %d: %s", i - sockfd, str);
+						sprintf(msg, "client %d: %s", clients[i], str);
 						sendToAll(maxfd, wfd, i, msg);
 					}
 					FD_CLR(i, &readyfd);
 					if (!str) // we got NULL that means client quit
 					{
-						sprintf(msg, "server: client %d just left\n", i - sockfd);
+						sprintf(msg, "server: client %d just left\n", clients[i]);
 						sendToAll(maxfd, wfd, i, msg);
 						FD_CLR(i, &rfd); //delete from check_for_read array
 						FD_CLR(i, &wfd); //delete from check_for_write array
 						if (i == maxfd - 1)
 							maxfd--;
+						clients[i] = -1;
 					}
 				}
 			}
