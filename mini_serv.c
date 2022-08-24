@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/22 18:34:36 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/24 14:14:12 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -136,12 +136,26 @@ char	*getData(int fd)
 		return (NULL);
 }
 
+static
+void sendToAll(int maxfd, fd_set wfd, int current, char *str)
+{
+		for (int i = 0; i < maxfd; i++)
+		{
+			if (FD_ISSET(i, &wfd))
+			{
+				if (i != current)
+				{
+					write(i, str, strlen(str));
+				}
+			}
+		}
+}
 
 int main(int argc, char **argv) 
 {
 	int sockfd, connfd, len, port, bytes, maxfd;
 	struct sockaddr_in servaddr, cli;
-	fd_set	rfd, readyfd;
+	fd_set	rfd, wfd, readyfd;
 	char	*str;
 
 	if (argc != 2)
@@ -170,6 +184,7 @@ int main(int argc, char **argv)
 			fatal(sockfd);
 	maxfd = sockfd + 1;
 	FD_ZERO(&rfd);
+	FD_ZERO(&wfd);
 	FD_SET(sockfd, &rfd);
 	while (1)
 	{
@@ -190,6 +205,7 @@ int main(int argc, char **argv)
 			   		    fatal(sockfd); 
 					printf("We have new connection from %d\n", connfd);
 					FD_SET(connfd, &rfd); //add to check_for_read array
+					FD_SET(connfd, &wfd); //add to check_for_write array
 					maxfd++;
 				}
 				else
@@ -197,12 +213,13 @@ int main(int argc, char **argv)
 					// FD is ready for read, so do it baby !
 					str = getData(i);
 					if (str) // we got something 
-						printf("FD %d) send us: %s", i, str);
+						sendToAll(maxfd, wfd, i, str);
 					FD_CLR(i, &readyfd);
 					if (!str) // we got NULL that means client quit
 					{
 						printf("FD %d just quit !\n", i);
 						FD_CLR(i, &rfd); //delete from check_for_read array
+						FD_CLR(i, &wfd); //delete from check_for_write array
 						if (i == maxfd - 1)
 							maxfd--;
 					}
