@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/24 14:14:12 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/24 15:04:30 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -157,6 +157,7 @@ int main(int argc, char **argv)
 	struct sockaddr_in servaddr, cli;
 	fd_set	rfd, wfd, readyfd;
 	char	*str;
+	char	*msg;
 
 	if (argc != 2)
 	{
@@ -182,6 +183,9 @@ int main(int argc, char **argv)
 			fatal(sockfd);
 	if (listen(sockfd, 10) != 0)
 			fatal(sockfd);
+	msg = calloc(512, sizeof(char));
+	if (!msg)
+		fatal(sockfd);
 	maxfd = sockfd + 1;
 	FD_ZERO(&rfd);
 	FD_ZERO(&wfd);
@@ -203,7 +207,8 @@ int main(int argc, char **argv)
 					connfd = accept(sockfd, (struct sockaddr *)&cli, &len);
 					if (connfd < 0)
 			   		    fatal(sockfd); 
-					printf("We have new connection from %d\n", connfd);
+					sprintf(msg,"server: client %d just arrived\n", connfd - sockfd);
+					sendToAll(maxfd, wfd, i, msg);
 					FD_SET(connfd, &rfd); //add to check_for_read array
 					FD_SET(connfd, &wfd); //add to check_for_write array
 					maxfd++;
@@ -213,11 +218,15 @@ int main(int argc, char **argv)
 					// FD is ready for read, so do it baby !
 					str = getData(i);
 					if (str) // we got something 
-						sendToAll(maxfd, wfd, i, str);
+					{
+						sprintf(msg, "client %d: %s", i - sockfd, str);
+						sendToAll(maxfd, wfd, i, msg);
+					}
 					FD_CLR(i, &readyfd);
 					if (!str) // we got NULL that means client quit
 					{
-						printf("FD %d just quit !\n", i);
+						sprintf(msg, "server: client %d just left\n", i - sockfd);
+						sendToAll(maxfd, wfd, i, msg);
 						FD_CLR(i, &rfd); //delete from check_for_read array
 						FD_CLR(i, &wfd); //delete from check_for_write array
 						if (i == maxfd - 1)
