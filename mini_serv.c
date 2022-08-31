@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/24 17:58:33 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/31 16:02:53 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,6 +67,7 @@ Allowed functions: write, close, select, socket, accept, listen, send, recv, bin
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+static
 void	fatal(int fd)
 {
 	write(2, "Fatal error\n", 12);
@@ -74,6 +75,7 @@ void	fatal(int fd)
 	exit (1);
 }
 
+static
 int extract_message(char **buf, char **msg)
 {
 	char	*newbuf;
@@ -101,26 +103,7 @@ int extract_message(char **buf, char **msg)
 	return (0);
 }
 
-char *str_join(char *buf, char *add)
-{
-	char	*newbuf;
-	int		len;
-
-	if (buf == 0)
-		len = 0;
-	else
-		len = strlen(buf);
-	newbuf = malloc(sizeof(*newbuf) * (len + strlen(add) + 1));
-	if (newbuf == 0)
-		return (0);
-	newbuf[0] = 0;
-	if (buf != 0)
-		strcat(newbuf, buf);
-	free(buf);
-	strcat(newbuf, add);
-	return (newbuf);
-}
-
+static
 char	*getData(int fd)
 {
 		int			bytes;
@@ -158,6 +141,7 @@ int main(int argc, char **argv)
 	fd_set	rfd, wfd, readyfd;
 	char	*str;
 	char	*msg;
+	char	*buffer;
 	int		clients[FD_SETSIZE];
 	int		count = 0;
 
@@ -225,8 +209,11 @@ int main(int argc, char **argv)
 					str = getData(i);
 					if (str) // we got something 
 					{
-						sprintf(msg, "client %d: %s", clients[i], str);
-						sendToAll(maxfd, wfd, i, msg);
+						while (extract_message(&str, &buffer))
+						{
+							sprintf(msg, "client %d: %s", clients[i], buffer);
+							sendToAll(maxfd, wfd, i, msg);
+						}
 					}
 					FD_CLR(i, &readyfd);
 					if (!str) // we got NULL that means client quit
