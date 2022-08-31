@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/31 16:02:53 by graja            ###   ########.fr       */
+/*   Updated: 2022/08/31 18:31:42 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -85,12 +85,12 @@ int extract_message(char **buf, char **msg)
 	if (*buf == 0)
 		return (0);
 	i = 0;
-	while ((*buf)[i])
+	while ((*buf)[i] != '\0')
 	{
 		if ((*buf)[i] == '\n')
 		{
-			newbuf = calloc(1, sizeof(*newbuf) * (strlen(*buf + i + 1) + 1));
-			if (newbuf == 0)
+			newbuf = calloc(strlen(*buf)  + 1, sizeof(char));
+			if (newbuf == NULL)
 				return (-1);
 			strcpy(newbuf, *buf + i + 1);
 			*msg = *buf;
@@ -107,7 +107,7 @@ static
 char	*getData(int fd)
 {
 		int			bytes;
-		static char	buf[1024];
+		static char	buf[1025];
 
 		memset(buf, 0, 1024);
 		bytes = recv(fd, buf, 1024, 0);
@@ -207,7 +207,7 @@ int main(int argc, char **argv)
 				{
 					// FD is ready for read, so do it baby !
 					str = getData(i);
-					if (str) // we got something 
+					if (str && strlen(str) > 0) // we got something 
 					{
 						while (extract_message(&str, &buffer))
 						{
