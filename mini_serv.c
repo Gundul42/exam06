@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2022/08/21 13:24:43 by graja             #+#    #+#             */
-/*   Updated: 2022/08/31 18:31:42 by graja            ###   ########.fr       */
+/*   Updated: 2022/09/01 10:44:09 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -104,19 +104,20 @@ int extract_message(char **buf, char **msg)
 }
 
 static
-char	*getData(int fd)
+int		getData(int fd, char **buf)
 {
 		int			bytes;
-		static char	buf[1025];
 
-		memset(buf, 0, 1024);
-		bytes = recv(fd, buf, 1024, 0);
+		*buf = calloc(1025, sizeof(char));
+		if (!(*buf))
+			return (-1);
+		bytes = recv(fd, *buf, 1024, 0);
+		printf("%d Bytes recieved\n", bytes);
 		if (bytes < 0)
 			fatal(fd);
 		else if (bytes > 0)
-			return (buf);
-		close (fd);
-		return (NULL);
+			return (bytes);
+		return (-1);
 }
 
 static
@@ -144,6 +145,7 @@ int main(int argc, char **argv)
 	char	*buffer;
 	int		clients[FD_SETSIZE];
 	int		count = 0;
+	int		err = 0;
 
 	if (argc != 2)
 	{
@@ -206,17 +208,19 @@ int main(int argc, char **argv)
 				else
 				{
 					// FD is ready for read, so do it baby !
-					str = getData(i);
-					if (str && strlen(str) > 0) // we got something 
+					err = getData(i, &str);
+					if (err >= 0) // we got something 
 					{
 						while (extract_message(&str, &buffer))
 						{
 							sprintf(msg, "client %d: %s", clients[i], buffer);
 							sendToAll(maxfd, wfd, i, msg);
+							free(buffer);
 						}
+						free(str);
 					}
 					FD_CLR(i, &readyfd);
-					if (!str) // we got NULL that means client quit
+					if (err < 0) // we got NULL that means client quit
 					{
 						sprintf(msg, "server: client %d just left\n", clients[i]);
 						sendToAll(maxfd, wfd, i, msg);
